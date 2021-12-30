@@ -1,0 +1,10 @@
+#! /usr/bin/env sh
+
+updates="$(($(apt list --upgradable | wc -l)-1))"
+if [ "$updates" -gt 0 ]; then
+    echo "$updates"
+    echo "$updates" > "${HOME}/.cache/upgradablepackages"
+else
+    echo "" > "${HOME}/.cache/upgradablepackages"
+fi
+

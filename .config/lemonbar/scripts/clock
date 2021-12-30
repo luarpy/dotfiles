@@ -1,0 +1,4 @@
+#! /bin/bash
+
+format="+%H:%M"
+echo "%{A:date '+%Y/%m/%d' > $time_format:}$(date "$format") %{F-}%{A}"

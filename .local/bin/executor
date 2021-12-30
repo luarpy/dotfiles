@@ -1,0 +1,2 @@
+#! /bin/env sh
+command=$(rofi -dmenu -i -l 15 <find . -type f ) && st "$command" 

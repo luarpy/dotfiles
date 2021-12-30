@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+
+# shellcheck disable=SC2154
+# shellcheck disable=SC1090
+# shellcheck disable=SC1117
+
+
+killall -q lemonbar
+margins=200 #px
+#margin_top="$((margins/2))" #px
+margin_top=2
+left="$margins"
+offset=0
+screen_width="$(xrandr -q | grep 'current' | cut -f 8 -d ' ')"
+#screen_heigth="$(xrandr -q | grep 'current' | cut -f 10 -d ' ' | tr -d ',')"
+bar_width="$((screen_width - margins*2))"
+bar_height=20
+bar_fonts=(	"DejaVuMono-6" "FontAwesome-9" "LatinModernSansQuotation-10" "Iosevka-10" "JetBrainsMonoBold-10")
+
+bar_icons=( "FontAwesome-8")
+#source "$HOME/.cache/wal/colors.sh"
+
+handle(){
+    {
+    while read -r line; do
+        local cmd="$line"
+        if [[ ! -z $cmd ]]; then
+            echo "$cmd &"
+        fi
+    done
+    } 2> /dev/null 
+}
+
+sleep 0.5s && bash "$HOME/.config/lemonbar/lemonconfig" | \
+    lemonbar -p -b -g  "$bar_width"x"$bar_height"+"$left"+"$margin_top" \
+    -f "${bar_fonts[4]}" \
+    | handle | sh

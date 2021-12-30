@@ -1,0 +1,172 @@
+#! /bin/bash
+#version 0.1
+defaultaccount="@_Dieztgen"
+configdir="${XDG_CONFIG_HOME:-$HOME/.config}/nitter"
+url="nitter.net"
+accounts=()
+accounts_file="tw_accounts.txt"
+maxaccounts=21
+version="0.3"
+
+# shellcheck disable=SC1090
+[ -f "$configdir/$accounts_file" ] && source "$configdir/$accounts_file"
+
+[ ! -d "$configdir" ] && mkdir -p "$configdir"
+
+if [ ! -f "$configdir/$accounts_file" ]; then
+    add_account "$defaultaccount"
+    write_to_config 
+fi
+
+
+show_usage(){
+println "Nitter URL Generator"
+println "Version $version"
+cat <<-'EOF'
+Modo de emprelo: nitter [options]... [Twitter account]...
+Opciones:" 
+   -A|--all             Devuelve y copia al portapapeles el enlace de nitter con 21 cuentas añadidas
+   -a|--add-account     Añade la cuenta a la lista de cuentas
+   -d|--domain          Devuelve el dominio de Nitter
+   -h|--help            Muestra este mensaje de ayuda 
+   -l|--list            Devuelve el listado de las cuentas disponibles en la lista
+   -r|--remove-account  Elimina la cuenta de la lista de cuentas
+   -u|--url             Devuelve y copia al portapapeles el dominio de nitter
+   -v|--version         Devuelve la versión
+EOF
+   exit 0
+}
+
+write_to_config(){
+    {
+        printf %s\\n "url=\"$url\""
+        #shellcheck disable=SC2154
+        printf %s\\n "accounts=("
+        for i in ${accounts[*]}; do
+            printf %s\\n "\"$i\""
+        done
+        printf %s\\n ")"
+    } > "$configdir/$accounts_file"
+}
+
+equals(){
+    local string="$1" 
+    for a in ${accounts[*]}; do
+        [ "$a" == "$string" ] || return 1
+    done
+}
+
+add_account(){
+   local account="$1" 
+   if equals "$account"; then
+        printf %s\\n "La cuenta $account está registrada"
+        return 1
+   else
+        accounts+=("$account")
+        printf %s\\n "Cuenta $account ha sido añadida"
+        return 0 
+   fi
+}
+
+remove_account(){
+    #TODO: debe eliminar la cuenta que se le parezca, no el string tal cual. Ejemplo, si pongo kolitza, quitará koliza, no kolitza_
+    local account="$1"
+    if equals "$account"; then
+        printf %s\\n "La cuenta $account no está en la lista"
+        return 1
+    else
+        accounts=("${accounts[@]/$account}")
+        printf %s\\n "Cuenta $account eliminada"
+        return 0
+    fi
+}
+
+generate_url(){
+    if [ "$1" = "--all" ]; then
+        i=0
+        # shellcheck disable=SC2154
+        for account in ${accounts[*]}; do
+            url="$url,${account#@}"
+            if [ "$(( ++i ))" -gt "$maxaccounts" ]; then
+                printf %s\\n "Se ha excedido el límite de cuentas"
+                break
+            fi
+        done < "$configdir/$accounts_file"
+        url="$(echo "$url" | sed "0,/,/s//\\//" )" 
+        printf %s\\n "$url"
+        echo "$url" | xclip -selection clipboard
+    elif [[ "$1" = "@"* ]] && [ "$#" -eq 1 ]; then
+        account="$1"   
+        url="$url/${account#@}"
+        println "$url" 
+        echo "$url" | xclip -selection clipboard
+    elif [ "$#" -eq 0 ]; then
+        println "$url" 
+        echo "$url" | xclip -selection clipboard
+    fi
+}
+
+println(){
+    printf %s\\n "$@"
+}
+
+while [ -n "$1" ]; do
+    case "$1" in
+    -v|--version)
+        printf %s\\n "Nitter URL Generator" 
+        printf %s\\n "Version $version"
+        ;;
+    -h|--help)
+        show_usage
+        exit 0
+        ;;
+    -u|--url)
+        shift 
+        if [[ "$1" = "@"* ]]; then
+            generate_url "$1"
+        elif [ -z "$1" ]; then
+            generate_url
+        fi
+        ;;
+    -A|--all)
+        generate_url --all
+        ;;
+    -a|--add-account)
+        shift 
+        if [ -n "$1" ]; then
+            if [[ "$1" = "@"* ]]; then
+                add_account "$1" 
+                write_to_config
+            else
+                printf %s\\n "La cuenta debe empezar por @"
+            fi
+        else
+            printf %s\\n "Falta el nombre de la cuenta" 
+        fi
+        ;;
+    -l|--list)
+        # shellcheck disable=SC2154
+        printf %s\\n "${accounts[@]}"
+        ;;
+    -r|--remove-account)
+        shift 
+        if [ -n "$1" ]; then
+            if [[ "$1" == "@"* ]]; then
+                remove_account "$1" 
+                write_to_config
+            fi
+        else
+            printf %s\\n "Falta el nombre de la cuenta"
+        fi
+        ;;
+    -d|--domain)
+        printf %s\\n "Dominio Nitter: $url"
+        ;;
+    *)
+        if [ "$#" -eq 0 ]; then
+            show_usage
+            exit 1
+        fi
+    esac
+    shift
+done

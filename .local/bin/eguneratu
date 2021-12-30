@@ -1,0 +1,221 @@
+#!/bin/env bash
+
+Y="-y"
+LOG_DIR="$HOME/.local/var/eguneratu"
+LOG_FILE="$LOG_DIR/eguneratu.log"
+PKGMGR=""
+PKGLIST="$HOME/.local/share/pkglist"
+RED="\e[0;91m"
+GREEN="\e[0;92m"
+YELLOW="\e[0;33m"
+END="\e[0m"
+FORMAT="'%Y-%m-%d %H:%M:%S'"
+
+show_usage(){
+cat <<-'EOF'
+  Sistemaren erabiltzaile nagusia edo horren bahimen bereziak behar dituzu lan hau burutzeko
+  -h,--help,      Mezu hau erakutsi
+  -e,--egiaztatu  Ziurtatu instalatu behar den paketea baimentzen dela
+  -f,--force      Bai a la bai progama exekutatuko da
+EOF
+}
+
+os_detect(){
+    if [ -f /etc/os-release ]; then
+        # freedesktop.org and systemd
+        source /etc/os-release
+        OS=$NAME
+    elif type lsb_release >/dev/null 2>&1; then
+        # linuxbase.org
+        OS=$(lsb_release -si)
+    elif [ -f /etc/lsb-release ]; then
+        # For some versions of Debian/Ubuntu without lsb_release command
+        source /etc/lsb-release
+        OS="$NAME"
+    elif [ -f /etc/debian_version ]; then
+        # Older Debian/Ubuntu/etc.
+        ...
+    elif [ -f /etc/SuSe-release ]; then
+        # Older SuSE/etc.
+        OS="suse"
+        ...
+    elif [ -f /etc/redhat-release ]; then
+        # Older Red Hat, CentOS, etc.
+        OS="redhat"
+    fi
+
+    # Establece el gestor de paquetes
+    case "${OS,,}" in # Convierte a minusculas para evitar problemas
+        *debian*|*ubuntu*)
+            PKGMGR="$(which apt)"
+            ;;
+        arch)
+            PKGMGR="$(which pacman)"
+            ;;
+        redhat|fedora)
+            PKGMGR="$(which yum)"
+            ;;
+        suse)
+            PKGMGR="$(which zipper)"
+            ;;
+        void)
+            PKGMGR="$(which xbps-install)"
+    esac
+}
+
+log(){
+    echo -e -n "[${GREEN}OK${END}]: $@\\n"
+    echo -e -n "[$(date +"$FORMAT")]: $@\\n" >> "$LOG_FILE"
+    if [ ! -z "$DISPLAY" ]; then # Comprueba si está en un entorno de escritorio
+        notify-send "$@"
+    fi
+}
+
+warn(){
+    echo -e -n "[${YELLOW}OK${END}]: $@\\n"
+    if [ ! -z "$DISPLAY" ]; then # Comprueba si está en un entorno de escritorio
+        notify-send "$@"
+    fi
+}
+
+err(){
+    echo -e -n "[${RED}ERR${END}]: $@\\n"
+    echo -e -n "[$(date +"$FORMAT")-ERR]: $@\\n" >> "$LOG_FILE"
+    if [ ! -z "$DISPLAY" ]; then
+        notify-send "$@" --urgency=critical 
+    fi
+}
+
+sudo(){
+    if which doas; then # Para sistemas que estén utilizando doas de BSD
+        doas "$@"
+    else
+        sudo "$*"
+    fi
+}
+
+update(){
+   case "${OS,,}" in
+        *debian*|*ubuntu*)
+            sudo apt clean 
+            sudo apt update $Y 
+            ;;
+        arch)
+            sudo "$PKGMGR" -Syu
+            ;;
+        void)
+            sudo "$PKGMGR" --sync
+            ;;
+    esac
+}
+
+list_packages(){
+    case "${OS,,}" in
+        *debian*|*ubuntu*)
+            sudo apt list --installed | grep --invert-match Listing | cut -d'/' -f1
+            ;;
+        arch)
+            ...
+            ;;
+        void)
+            ...
+            ;;
+    esac
+    if [ "$?" -ne 0 ] ; then
+        err "Ha habido problemas para listar los paquetes"
+        err "Problema con: "!:0
+    fi
+
+}
+
+install_from_packages(){
+    if [ -f "$PKGLIST" ]; then
+        case "${OS,,}" in
+            *debian*|*ubuntu*)
+                sudo apt list --installed | grep --invert-match Listing | cut -d'/' -f1
+                ;;
+            arch)
+                ...
+                ;;
+            void)
+                ...
+                ;;
+        esac
+        [ "$?" -ne 0 ] && err "Ha habido problemas para listar los paquetes"
+    else
+        err "No se ha encontrado el listado de paquetes"
+        err "Problema con: "!:0
+    fi
+}
+
+upgrade(){
+    case "${OS,,}" in
+        debian|ubuntu)
+            sudo "$PKGMGR" clean 
+            sudo "$PKGMGR" dist-upgrade $Y 
+            sudo "$PKGMGR" autoremove $Y 
+            sudo "$PKGMGR" autoclean $Y
+            ;;
+        arch)
+            sudo "$PKGMGR" -Syu
+            ;;
+        void)
+            sudo "$PKGMGR" -Syu
+            ;;
+    esac
+
+    if which flatpak > /dev/null; then # Comprueba si existe flatpak
+        flatpak update --assumeyes --noninteractive 
+    fi
+}
+
+main(){
+    # Egiaztatu erabiltzailearen baimenak
+#    sudo -v >/dev/null || (show_usage && exit 1)
+    
+    # Comprueba si existe el archivo de logs
+    [ ! -f "$LOG_FILE" ] && mkdir -p "$LOG_DIR" && touch "$LOG_FILE"
+
+    os_detect # Distribuzioa detektatu
+    
+    warn "System info: \
+        OS: $OS \\n\
+        Package Manager: $PKGMGR "
+
+    log "Eguneratzen..."
+
+    # Actualiza el sistema
+    update 
+    upgrade
+    list_packages > "$PKGLIST"
+    
+    # Comprueba si el último comando se ha ejecutado con errores
+    if [ "$?" -eq 0 ]; then
+        log "Dena eguneratua izan da..."
+    else
+        err "Arazoak egon dira eguneratzen"            
+    fi
+    
+    # Comprueba si hace falta reiniciar
+    if [ -f /var/run/reboot-required ]; then
+        warn "Berriaraztea gomendatzen da"
+    fi
+}
+
+while [ ! -z "$1" ]
+do
+  case "$1" in
+    -h|--help)
+      show_usage
+      exit 0 
+      ;;
+    -e|--egiaztatu)
+      Y=""
+      ;;
+    -f|--force)
+      FORCE=0
+  esac
+  shift
+done
+
+main

@@ -1,0 +1,92 @@
+#! /bin/env bash
+
+#TODO: encriptar archivo con clave público-privadas
+
+file=
+TERM="st"
+tor=1
+script_location="$(command -v "$0")"
+tor_icon="/usr/local/share/onion.svg"
+
+send2net() {
+    local file="$1"
+    curl -F "file=@$file" 0x0.st | xclip -rmlastnl -selection c
+    return "$?"
+}
+
+send2tor(){
+    local term="$1"
+    local file="$2"
+    printf %s\\n "Ctrl+C erabili partekatzeari uzteko"
+    "$term" -e onionshare-cli "$file" 
+    return "$?"
+}
+
+showUsage(){
+    printf %s\\n "Aukerar:"
+    printf %s\\n "  -h|--help               Mezu hau erakutsi"
+    printf %s\\n "  -onion|--onion-share    TOR-en bidez partekatu"
+    printf %s\\n "  -t|--terminal           Berezko terminala"
+    return 0
+}
+
+while [ ! -z "$1" ]; do
+    if [ -f "$1" ]; then
+        file="$1"
+    else
+        case "$1" in
+            -h|--help)
+                showUsage
+                exit 1
+                ;;
+            -onion|--onion-share)
+                shift 
+                if [ -f "$1" ]; then
+                    file="$1"
+                    tor=0
+                fi
+                ;;
+            -t|--terminal)
+                shift
+                TERM="$1"
+                if command -v "$TERM" > /dev/null; then
+                    sed "s/^TERM=.*/TERM=\"$TERM\"/" -i "$script_location"
+                else
+                    printf %s\\n "$TERM no existe"
+                    TERM="xterm"
+                fi
+                ;;
+            *)  
+                [ -f "$1" ] && file="$1"
+        esac
+    fi
+    shift
+done
+
+for prog in curl wget grep xclip rofi find $term; do
+    [ ! "$(command -v "$prog" )" ] && echo "Mesedez, jarri $prog programa" && exit 1
+done
+
+if mat2 "$file" ;then # try
+    echoOK "Metadatos eliminados"
+else # catch
+    file="$file"
+fi
+
+if [ -z "$file" ]; then 
+    file=$(find "$HOME" -type f | rofi -dmenu -i -l 25)
+    send2net "$file" && \
+    notify-send "${file%/} artxiboa partekatua izan da" 
+else
+    if [ -n "$tor" ] && command -v onionshare-cli > /dev/null ; then
+        send2tor "$TERM" "$file" && \
+        notify-send "$([ -f "$tor_icon" ] && echo "%i $tor_icon")" \
+        "$(basename "$file") artxiboa partekatua izan da"
+
+    else
+        send2net "$file" && \
+            notify-send "$(basename "$file") artxiboa partekatua izan da" 
+    fi
+fi
+
+

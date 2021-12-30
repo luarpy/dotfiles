@@ -1,0 +1,56 @@
+#! /bin/env sh
+
+jar=
+
+run(){
+    java  \
+        -Xms256m \
+        -Xmx2048m \
+        "$([ -n "$jar" ] && echo "-jar")" \
+        "$1" 
+    return "$?"
+}
+
+if [ $# -eq 0 ]; then
+    printf %s\\n "Insertar un archivo de entrada"
+    exit 1
+elif [ "$#" -ne 1 ]; then
+    printf %s\\n "Solo se puede poner el archivo principal de entrada"
+    exit 1
+fi
+
+if echo "${PWD}" | grep -q -I "upna\\|projects" ; then
+    dir_name="${PWD##*/}"
+    file="$*"
+    directories=
+    bin="bin"
+    lib="lib"
+    src="src"
+    for i in "$bin" "$src" "$lib"; do [ ! -d "$i" ] && mkdir "$i" > /dev/null; done
+    
+    classes=
+    for jar_file in "$lib"/*.jar; do classes="${classes}:${jar_file}"; done
+
+    # shellcheck disable=SC1083
+    directories="$(find "$src"/ -type d | sed "s/$src\\///g")"
+    for dir in ${directories}; do mkdir -p "$bin/${dir}"; done
+
+    if [[ "$file" == *.jar$ ]]; then 
+        jar=1
+        file_name="$file"
+    else
+        file="$(basename "$file")"
+        file_name="${file%.*}"
+    fi
+
+    clear
+    printf %s\\n "========= RUNNING ========="
+    printf %s\\n "      java $file_name "
+    cd "$bin" || exit 1
+    run "${file%.*}" && \
+    notify-me "Programa terminado"
+    cd .. || exit 1
+else
+    printf %s\\n "No deberías crear programas de java en ${PWD}"
+fi
+

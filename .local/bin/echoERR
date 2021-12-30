@@ -1,0 +1,6 @@
+#! /bin/env bash
+
+red="\\x1b[38;5;9m"
+clean="\\x1b[0m"
+
+echo -en "[${red}ERR${clean}]" "$@" "\\n" && exit 0 || exit 1

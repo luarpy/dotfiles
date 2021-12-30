@@ -1,0 +1,25 @@
+#! /bin/env bash
+
+#TODO: para cada monitor poner una imagen que se ajuste a su resolución
+primary_monitor="LVDS1"
+#bg_img="$(cat "${HOME}/.cache/wal/wal")"
+
+if [ "$1" == "-r" ]; then
+    position="--right-of"
+else
+    position="--left-of"
+fi
+
+if xrandr -q | grep -I "DP[1-3] con" -q; then
+    xrandr --auto --output DP1 --size 1920x1080 --primery --right-of "$primary_monitor" --size 1920x1080
+    echoOK "Monitores configurados"
+elif xrandr -q | grep -I "VGA[0-9] con" -q; then
+    xrandr --output LVDS1 --primary --auto --output VGA1 --auto "$position" LVDS1 
+    feh --bg-fill "$bg_img"
+    echoOK "Monitores configurados"
+else 
+    xrandr --auto --output LVDS1 --size 1920x1080
+    feh --bg-fill "$bg_img"
+    echoOK "No hay monitores conectados"
+fi
+

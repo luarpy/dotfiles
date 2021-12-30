@@ -1,0 +1,59 @@
+#! /bin/env sh
+
+#TODO: añadir para transformar de DOS a UNIX y viceversa
+#TODO: hacer que antes de compilar se añadan los archivos a GIT
+#TODO: hacer que cada archivo *.java se añada a git
+
+log_file="output.log"
+
+if [ $# -eq 0 ]; then
+    printf %s\\n "Insertar un archivo de entrada"
+    exit 1
+fi
+if [ "$#" -ne 1 ]; then
+    printf %s\\n "Solo se puede poner el archivo principal de entrada"
+    exit 1
+fi
+if echo "${PWD}" | grep -q -I "upna\\|projects" || true; then
+    dir_name="${PWD##*/}"
+    file="$*"
+    directories=
+    bin="bin"
+    lib="lib"
+    src="src"
+#    declare -a java_files=
+#    declare -a files=
+
+    for i in "$bin" "$src" "$lib"; do [ ! -d "$i" ] && mkdir "$i" > /dev/null; done
+    
+    classes=
+    for jar_file in "$lib"/*.jar; do classes="${classes}:${jar_file}"; done
+
+    # shellcheck disable=SC1083
+    directories="$(find "$src"/ -type d | sed "s/$src\\///g")"
+    for dir in ${directories}; do mkdir -p "$bin/${dir}"; done
+
+    printf %s\\n "========== CONFIGURE =========="
+
+    file="$(basename "$file")"
+    cd "$src" || exit 1
+    javac  \
+        -Xstdout "../$log_file" \
+        -d  "../$bin/" \
+        -classpath "../.:${classes}" \
+        "$file" && \
+    notify-me "Programa compilado"
+    cd .. || exit 1
+    if [ -s "$log_file" ]; then
+        printf %s\\n "========== ERRORS =========="
+        cat "$log_file"
+    else
+        printf %s\\n "========= COMPILE ========="
+        printf %s\\n "      java ${file%.*}"
+        printf %s\\n "para ver el resultado"
+    fi
+    rm -f "$log_file"
+else
+    printf %s\\n "No deberías crear programas de java en ${PWD}"
+fi
+

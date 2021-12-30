@@ -1,0 +1,25 @@
+#!/bin/env bash
+
+img="$(date +'%Y-%m-%d_%H:%M:%S')_scrot.png"
+dir="$HOME/img/screenshots/"
+
+if [ ! -d "$dir" ]; then 
+    mkdir -p "$dir" > /dev/null 
+    printf %s\\n "Directorio $dir creado"
+fi
+
+printf %s "Captura en "
+for i in $(seq 5 -1 1); do
+    printf %s "$i.."
+    sleep 0.5s
+done
+printf \\n
+
+if scrot "$img" -z -s ; then 
+    notify-send "Captura de pantalla: $img" --urgency=low
+    mv "$img" "$dir"
+    xclip -selection clipboard -t image/png -i "$dir/$img"
+else
+    notify-send "No se ha podido hacer la captura" --urgency=normal
+fi
+

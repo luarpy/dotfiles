@@ -1,0 +1,11 @@
+#! /bin/env bash
+
+from_encoding="ISO-8859-1"
+to_encoding="UTF-8"
+for file in "$@"; do
+    tmp_file="$(mktemp)"
+    iconv -c -f "$from_encoding" -t "$to_encoding" "$file" -o "$tmp_file"  || \
+        echoERR "$file no se pudo convertir a DOS"
+    mv "$tmp_file" "$file"
+    rm -f "$tmp_file"
+done

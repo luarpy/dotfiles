@@ -1,0 +1,70 @@
+#! /usr/bin/env bash
+######################################################################
+# @author      : mitzasi (mitzasi@plumberry)
+# @file        : utilities
+# @created     : domingo may 02, 2021 11:59:26 CEST
+#
+# @description : 
+######################################################################
+
+script=
+insert=
+timer=
+
+check_input(){
+    local input=""
+    if [[ -p /dev/stdin ]]; then
+        input="$(cat -)"
+    else
+        input="${*}"
+    fi
+
+    if [ -f "$input" ]; then
+        input="$(cat "$input")"
+    fi
+
+    if [[ -z "${input}" ]]; then
+        return 1
+    fi
+
+    echo "${input}"
+}
+
+show_usage(){
+cat << EOF
+Aukerak:
+    -h|--help   Mezu hau erakutsi
+EOF
+    return 0
+}
+
+while [ ! -z "$1" ]; do
+  case "$1" in
+    -h|--help)
+        show_usage
+        exit 1
+        ;;
+    -q|--quiet)
+        quiet="> /dev/null 2>&1"
+        ;;
+    *)
+        show_usage
+        exit 1
+  esac
+  shift
+done
+
+read -p "Timer: " -r timer 
+
+read -p "Script: " -r script 
+if [ ! -f "$script" ]; then
+    printf %s\\n "Could not find $script or it does not exits"
+    exit 1
+fi
+
+
+if [ -n "$timer" ] && [ -n "$script" ]; then
+    insert="$timer $script $quiet"
+    (crontab -l; echo "$insert";)| crontab
+fi
+

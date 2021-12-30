@@ -1,0 +1,172 @@
+#!/bin/env bash
+# Outputs a configuration for lemonbar
+
+# shellcheck disable=SC2154
+# shellcheck disable=SC1090
+# shellcheck disable=SC1117
+#source "$HOME/.cache/wal/colors.sh"
+
+bg_COLOR="#141c21" 
+bg_COLOR="$bg"
+fg_COLOR="#ea545c"
+fg_COLOR="$fg"
+CRITICAL="$color_critical"
+bg="$background"
+fg="$foreground"
+
+#Define the clock
+clock(){
+    local format="+%H:%M"
+    echo "%{A:date '+%Y/%m/%d' > $time_format:}$(date ) %{F-}%{A}"
+    date "+%H:%M" > "$time_format"
+}
+
+# Sound
+Sound(){
+	VOLUMNE="$( amixer sget Master )"
+    local out="prueva"
+    if echo "$VOLUMNE" | grep -i "\\[on\\]" -q ; then
+		VOL=$(echo "$VOLUMNE" | grep "\\[on\\]" -m 1 | cut -f 7 -d ' ' |tr -d "[]%")
+        if [ "$VOL" -gt 100 ]; then
+            echo -e " %{F#fb4934}\uf028 ${VOL}%%{F-}"
+        elif [ "$VOL" -ge 85 ]; then
+			echo -e " %{F$fg}\uf028 ${VOL}%%{F-}"
+		elif [ "$VOL" -ge 50 ] ; then
+			echo -e " %{F$fg}\uf027 ${VOL}%%{F-}"
+		else
+			echo -e " %{F$fg}\uf026 ${VOL}%%{F-}"
+		fi
+	else
+		echo -e " %{F$color6}muted %{F-}"
+	fi
+}
+
+Battery() {
+    battery_format="${HOME}/.cache/battery_format"
+	BATTACPI="$(acpi --battery | tr -d ',%')"
+    state="$(echo "$BATTACPI" | cut -d ' ' -f3 )"
+    remaining="$(echo "$BATTACPI" | cut -d ' ' -f5)"
+    BATPERC="$(echo "$BATTACPI" | cut -d ' ' -f4)"
+    if [ "$BATPERC" == 100 ]; then
+		out="%{F#B8BB26}\uf00c%{F-} %{F$fg}$BATPERC%%{F-}"
+	elif [ "$state" = "Discharging" ]; then
+		if [ "$BATPERC" -le 10 ]; then
+			icon="%{F#fb4934}\uf244%{F-}"
+		elif [ "$BATPERC" -le 25 ]; then
+		    icon="%{F#fb4934}\uf243%{F-}"
+		elif [ "$BATPERC" -le 50 ]; then
+		    icon="\uf242"
+		elif [ "$BATPERC" -le 75 ]; then
+			icon="\uf241"
+		elif [ "$BATPERC" -le 100 ]; then
+			icon="\uf240"
+		fi
+		out="%{F$fg}$icon%{F-}%{F$fg}$BATPERC%%{F-}"
+	elif [ "$state" = "Charging" ]; then
+		out="%{F#FABD2F}\uf0e7%{F-}%{F$fg}$BATPERC%%{F-}"
+	elif [ "$state" = "Unknown" ]; then
+		out="$BATPERC%"
+	fi
+    echo -e "%{A:echo $remaining > $battery_format:} $(cat "$battery_format")%{A}"
+    echo "$out" > "$battery_format"
+}
+
+Nettraffic() {
+  
+  # Module showing network traffic. Shows how much data has been received (RX) or
+  # transmitted (TX) since the previous time this script ran. So if run every
+  # second, gives network traffic per second.
+  update() {
+      sum=0
+      for arg; do
+          read -r i < "$arg"
+          sum=$(( sum + i ))
+      done
+      cache=${XDG_CACHE_HOME:-$HOME/.cache}/${1##*/}
+      [ -f "$cache" ] && read -r old < "$cache" || old=0
+      printf %d\\n "$sum" > "$cache"
+      printf %d\\n $(( sum - old ))
+  }
+
+  rx=$(update /sys/class/net/[ew]*/statistics/rx_bytes)
+  tx=$(update /sys/class/net/[ew]*/statistics/tx_bytes)
+ # shellcheck disable=SC2086
+  echo -e -n "\uf0d7 $(numfmt --to=iec $rx)B \uf0d8 $(numfmt --to=iec $tx)B"
+}
+
+Tor_service() {
+  local SERVICE="tor.service"
+  local TOR_ACTIVE_bg_COLOR="#7c459a"
+  #local TOR_ACTIVE_fg_COLOR="#a5be1f"
+  systemctl is-enabled --quiet "$SERVICE" && echo -e "%{F$foreground}%{B$TOR_ACTIVE_bg_COLOR} tor %{B-}%{F-}" || echo "%{F$fg_COLOR}%{F-}"
+}
+
+bluetooth_service() {
+  local SERVICE="bluetooth.service"
+  local SERVICE_ACTIVE_bg_COLOR="$bg"
+  local SERVICE_ACTIVE_fg_COLOR="#9DA7CE"
+  systemctl is-enabled --quiet "$SERVICE" && echo -e "%{F$SERVICE_ACTIVE_fg_COLOR}%{B$SERVICE_ACTIVE_bg_COLOR} \\uf1e0 %{F-}" || echo "%{F$fg}%{F-}"
+}
+
+caffeine(){
+    local caffeine_color="$foreground"
+    [ -f "$HOME/.config/openbox/cappuccino" ] && echo -e "%{F$caffeine_color} \\uf0f4 %{F-}" || echo -e ""
+}
+
+memory(){
+    used_mem="\uf538$(free -h --si | grep 'Mem:' | tr -s ' ' | cut -d ' ' -f2,3 )"
+    echo -e "$used_mem" | tr ' ' '/'
+}
+
+Disk(){
+    if [ -z "$1" ]; then
+        mnt_point="/"
+    else
+        mnt_point="$1"
+    fi
+
+    echo "${1^^} $(df -h "$mnt_point" | tail -n 1 | cut -d " " -f 12)"
+}
+
+workSpace(){
+    workspace="$(($(xprop -root _NET_CURRENT_DESKTOP | cut -d ' ' -f3) + 1))"
+    number_ws="$(xprop -root _NET_NUMBER_OF_DESKTOPS | cut -d ' ' -f3)"
+    id_="$(xprop -root _NET_ACTIVE_WINDOW | cut -d ' ' -f5)"
+    window="$( xprop -id "$id_" | grep WM_CLASS | tr -d "\"" | tr -d ',' | cut -d ' ' -f3)"
+    [ -z "$window" ] && window="$workspace"
+    local aux= 
+    for current in $(seq "$number_ws"); do
+        if [ "$current" == "$workspace" ]; then
+            aux="$aux %{R} ${window^^} %{R-} "
+        else
+            aux="$aux $current"
+        fi
+    done
+    echo "$aux"
+}
+
+updates(){
+    echo "[packages $(cat "${HOME}/.cache/upgradablepackages")]"
+}
+
+Bluetooth(){
+    echo "%{A:bluetooth toggle:}%{F$fg} $(bluetooth | cut -d ' ' -f3) %{F-}%{A}"
+}
+
+reserva_sitio(){
+#    local cmd="${HOME}/projects/reserva_sitio/checking.sh && notify-send 'Checking mandado'"
+    local ex="${HOME}/projects/reserva_sitio/checking.sh"
+    if [ -f "${HOME}/.cache/checking_available" ]; then
+        echo "%{A:$ex:}%{B#FFB400}%{F$bg} Check in %{F-}%{B-}%{A}"
+    fi
+}
+
+hibernate(){
+    echo "%{A:systemctl hibernate:}%{B$bg}%{F$fg} zZz %{F-}%{B-}%{A}"
+}
+
+while true; do
+#    echo "%{l}%{F$fg} $(workSpace) $(updates) %{F-}%{c}%{F$fg} $(caffeine)$(clock) %{F-} %{r}%{F$fg} $(Nettraffic) $(memory) $(Tor_service)$(Bluetooth)$(Sound)$(Battery)$(hibernate)%{F-} "
+    echo "%{c}$(clock)%{F-}"
+    sleep 1
+done

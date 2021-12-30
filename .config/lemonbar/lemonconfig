@@ -1,0 +1,8 @@
+#!/bin/env bash
+
+builtin cd "$HOME/.config/lemonbar/scripts" || exit 1
+PATH="$PATH:$PWD"
+while true; do
+    echo "%{l}$(workspaces.sh) %{c}$(clock) %{r}$(panel_cpu)$(panel_mem) $(acpi --battery)"
+    sleep 1
+done
