@@ -1,10 +1,14 @@
 # My dotfiles
 
-## How to install dotfiles and manage them
+## Usage
+
+Based in GNU Stow - https://www.gnu.org/software/stow
 
 ```bash
-stow
-
+cd ~
+git clone https://github.com/luarpy/dotfiles.git
+cd dotfiles
+stow openbox # (or bash, lemonbar, kitty, etc.)
 ```
 
 The approach used by Stow is to install each package into its own tree,

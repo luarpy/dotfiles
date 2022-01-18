@@ -1,11 +1,9 @@
 #! /usr/bin/env bash
 
-# get wireless private IP
 private_w_IP(){
     hostname -I | cut -d ' ' -f1
 }
 
-# Multipoupuse compress files extractor
 ex(){
     local filepath="${1%/*}"
     if [ -f "$1" ]; then
@@ -19,7 +17,6 @@ ex(){
     fi
 }
 
-# Multipourpuse file opener
 open(){
     if [ -f "$1" ] ; then
         case "$1" in
@@ -39,7 +36,6 @@ open(){
    fi
 }
 
-# Convert dir to zip file
 dir2zip(){
     if [ -d "$1" ]; then
        echo "$1" 
@@ -48,7 +44,6 @@ dir2zip(){
     fi
 }
 
-# File system check for drives
 check_drive(){
     local drive
     if [ -z "$1" ]; then
@@ -59,26 +54,33 @@ check_drive(){
     sudo fsck "$drive"
 }
 
-# get git branch
+
+ff(){
+    local dir="$1"
+    while read -r line; do  
+        if file -bi "$line" | grep "utf-"* -q ; then
+            printf %s\\n "File: $line"
+            printf %s\\n "      Format: $(file -bi "$line")"
+        fi
+    done < <(find $1 -type f)
+}
+
 git_branch(){
     git branch --show-current 2>/dev/null 
 }
 
-# get dir size. It does not return dir's files size
 dir_size(){
     echo "$(ls -hal | head -n 1 | cut -d ' ' -f 2)b" 
 }
 
-# find file in dirs
 files_in_dir(){
     echo "$(find . -maxdepth 1 -type f| wc -l) files"
 }
-# Get yout public IP
+
 public_IP(){
     timeout 1 curl ipinfo.io/ip || echo "no-ip"
 }
 
-# get user name. Root user is printed in red
 get_user(){
     if [ "$USER" == "root" ]; then
         echo -e "\e[0;1;38;5;160mroot\e[0m"
@@ -87,7 +89,6 @@ get_user(){
     fi
 }
 
-# Set pretty colors in less
 man() {
     # Based in: https://felipec.wordpress.com/2021/06/05/adventures-with-man-color/
     #LESS_TERMCAP_md=$'\e[01;31m' \
@@ -100,7 +101,6 @@ man() {
     command man "$@"
 }
 
-# HTML to Markdown converter
 html2md(){
     local file="$1"
     local encoding='utf8'
@@ -110,7 +110,6 @@ html2md(){
     html2text --pretty "$encoding"
 }
 
-# Enable pyrhont enviroment
 set_pyenviroment(){
     local dir_name="$(ls -al | grep -i "env" | rev | cut -d' ' -f1 | rev)" # Recoge el nombre final del archivo
     printf %s\\n "Enviroment dir: $dir_name"
@@ -118,16 +117,13 @@ set_pyenviroment(){
     source "$dir_name/bin/activate"
 }
 
-
 writecmd (){ perl -e 'ioctl STDOUT, 0x5412, $_ for split //, do{ chomp($_ = <>); $_ }' ; }
 
-# forward history
 fh() {
     # https://github.com/junegunn/fzf/wiki/examples
   ([ -n "$ZSH_NAME" ] && fc -l 1 || history) | cut -d' ' -f4- | uniq | fzf +s --tac -i | sed -re 's/^\s*[0-9]+\s*//' |  writecmd
 }
 
-# cd + ls
 ch(){
     if [ "$#" -ne 0 ]; then
         builtin cd "$*" && ls
@@ -136,12 +132,14 @@ ch(){
     fi
 }
 
-# check tor enviroment
+up2server(){
+    rsync -rtvzP "$1" erabil@192.168.0.132:"$2"
+}
+
 check_tor(){
     [ -n "$LD_PRELOAD" ] && echo "Tor"
 }
 
-# Enable tor enviroment
 set_torenviroment(){
     torsocks --shell
 }

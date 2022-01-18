@@ -1,0 +1,396 @@
+#!/usr/bin/env bash
+
+# LICENSE: https://www.gnu.org/licenses/gpl-3.0.en.html
+
+# Load the configuration file if it exists in src/.config
+[ -f "$1/.config" ] && source "$1/.config"
+
+VERSION='0.1'
+
+main() {
+	test -n "$1" || usage
+	test -n "$2" || usage
+	test -n "$3" || usage
+	test -n "$4" || usage
+ 	test -d "$1" || no_dir "$1"
+ 	test -d "$2" || no_dir "$2"
+
+	src=$(readlink_f "$1")
+	dst=$(readlink_f "$2")
+
+    local base_url="$4"
+
+    [ -n "$DOMAIN_NAME" ] && base_url="$DOMAIN_NAME"
+    
+	IGNORE=$(
+		if ! test -f "$src/.ssgignore"
+		then
+			printf ' ! -path "*/.*"'
+			return
+		fi
+		while read -r x
+		do
+			test -n "$x" || continue
+			printf ' ! -path "*/%s*"' "$x"
+		done < "$src/.ssgignore"
+	)
+
+	local title="$3"
+
+	local h_file="$src/_header.html"
+    local f_file="$src/_footer.html"
+	test -f "$f_file" && FOOTER=$(cat "$f_file") && export FOOTER
+    test -f "$h_file" && HEADER=$(cat "$h_file") && export HEADER
+	list_dirs "$src" |
+	(cd "$src" && cpio -pdu "$dst")
+
+	fs=$(
+        if [ -f "$dst/.files" ]; then 
+            list_affected_files "$src" "$dst/.files"
+        else
+            list_files "$1"
+        fi
+	)
+
+	if [ -n "$fs" ]; then
+		echo "$fs" | tee "$dst/.files" # Añade los archivos a la lista de procesados
+
+		if echo "$fs" | grep --quiet '\.md$'
+		then
+			if [ -x "$(which lowdown 2> /dev/null)" ] ; then
+				echo "$fs" | grep '\.md$' | 	render_md_files_lowdown "$src" "$dst" "$title"
+			else 
+                if [ -x "$(which Markdown.pl 2> /dev/null)" ] ; then
+                    echo "$fs" | grep '\.md$' | render_md_files_Markdown_pl "$src" "$dst" "$title"
+				else
+					echo "couldn't find lowdown nor Markdown.pl"
+					exit 3
+				fi
+			fi
+		fi
+
+		echo "$fs" | grep '\.html$' | render_html_files "$src" "$dst" "$title"
+        
+        #IDEA: Creo que sería buena idea hacer que eliminase los espacios entre tags para así reducir el espacio que ocupa el documento
+        
+        # Copy everything that is not Markdown or HTML files
+		echo "$fs" | grep -Ev '\.md$|\.html$' |	(cd "$src" && cpio -pu "$dst")
+	fi
+    
+    # Features
+    add_stylesheet "$2"
+    add_script "$2"    #FIXME: falta añadir la corrección para el boton de la página principal
+    add_noscript "$2"
+    add_mainpage_button "$2" "$base_url"
+    replace_DOMAIN_NAME "$2"
+
+	# sitemap
+
+	local date=$(date +%Y-%m-%d)
+ 	local urls=$(list_pages "$src")
+
+	test -n "$urls" &&
+	render_sitemap "$urls" "$base_url" "$date" > "$dst/sitemap.xml"
+
+    render_article_list "$urls" "$base_url" "$dst" "$src"
+
+	printf '[ssg] ' >&2
+	print_status 'file, ' 'files, ' "$fs" >&2
+	print_status 'url' 'urls' "$urls" >&2
+	echo >&2
+}
+
+readlink_f() {
+	local file="$1"
+	cd "$(dirname "$file")"
+	file=$(basename "$file")
+	while test -L "$file"; do
+		file=$(readlink "$file")
+		cd "$(dirname "$file")"
+		file=$(basename "$file")
+	done
+	local dir=$(pwd -P)
+	echo "$dir/$file"
+}
+
+add_stylesheet(){
+    if [ -n "$STYLESHEET" ]; then
+        local files="$(list_files "$1" | grep '\.html$' | sed 's|\./||g')"
+        cd "$1"
+        while read file; do
+            local path="$(realpath_f "$PWD" "$file")"
+            local stylesheet_line="<link rel=\"stylesheet\" type=\"text/css\" href=\"$path$STYLESHEET\">"
+            sed -i "/<\/head>/i $stylesheet_line" "$file"
+        done < <(echo "$files")
+        cd ..
+    fi
+}
+
+add_script(){
+    if [ -n "$SCRIPT" ]; then
+        local files="$(list_files "$1" | grep '\.html$' | sed 's|\./||g')"
+        cd "$1"
+        while read file; do
+            local path="$(realpath_f "$PWD" "$file")"
+            local script_line="<script type=\"text\/javascript\" src=\"$path$SCRIPT\"><\/script>" 
+            sed -i "/<\/body>/i $script_line" "$file"
+        done < <(echo "$files")
+        cd ..
+    fi
+}
+
+add_noscript(){
+    if [ "$NOSCRIPT" == "Yes" ]; then
+        local files="$(list_files "$1" | grep '\.html$' | sed 's|\./||g')"
+
+        cd "$1"
+        while read file; do
+            local noscript_line="<noscript>JavaScript is disabled in your browser </noscript>"
+            sed -i "/<\/body>/i $noscript_line" "$file"
+        done < <(echo "$files")
+        cd ..
+    fi
+}
+
+add_mainpage_button(){
+    [ -n "$BUTTON_TEXT" ] || BUTTON_TEXT="Main Page"
+    local files="$(list_files "$1" | grep '\.html$' | sed 's|\./||g')"
+    cd "$1"
+    while read file; do
+        if ! echo "$file" | grep -q "index"; then
+            local text_line="<p class=\"main-page\"><a class=\"back\" href=\"$2\">$BUTTON_TEXT<\/a><\/p>" 
+            if grep -Eq "<*.footer*.>"; then
+                #FIXME: get <footer>*</footer> line and use it to replace in place
+                local footer_segment="$(echo "$file" | pup 'footer')"
+                sed "/<footer*.>/i" $text_line "$file"
+            else
+                sed -i "/<\/body>/i $text_line" "$file"
+            fi
+        fi
+    done < <(echo "$files")
+    cd ..
+}
+
+replace_DOMAIN_NAME(){
+    if [ -n "$DOMAIN_NAME" ]; then
+        local files="$(list_files "$1" | grep '\.html$' | sed 's|\./||g')"
+        cd "$1"
+        while read file; do
+            sed -i 's|DOMAIN_NAME|'"$DOMAIN_NAME"'|g' "$file"
+        done < <(echo "$files")
+        cd ..
+    fi
+}
+
+realpath_f(){
+    realpath --relative-to="$2" "$1" | tr '/' '\n' | sed '0,/../{//d;}' | tr '\n' '/'
+}
+
+replace_path(){
+    [ "$PWD" != "$(readlink -f "$1")" ] && cd "$(readlink -f "$1")"
+    exit
+    local files="$(list_files "$1" | grep "\.html$" | sed 's|\./||g')"
+    while read file; do
+        sed -i 's|FCKING_PATH|'"$(realpath_f "$1" "$file")"'|g' "$file" --quiet 
+    done < <(echo "$files")
+
+}
+
+print_status() {
+	test -z "$3" && printf 'no %s' "$2" && return
+
+    echo "$3" | awk -v singular="$1" -v plural="$2" ' 
+    END {
+		if (NR==1) printf NR " " singular
+		if (NR>1) printf NR " " plural
+	}'
+}
+
+
+usage() {
+	echo "usage: ${0##*/} src dst title base_url" >&2
+	exit 1
+}
+
+version(){
+    echo "version: ${0##*/} $VERSION" >&1
+    exit 0
+}
+
+
+no_dir() {
+	echo "${0##*/}: $1: No such directory" >&2
+	exit 2
+}
+
+list_dirs() {
+	cd "$1" && eval "find . -type d ! -name '.' ! -path '*/_*' $IGNORE"
+}
+
+
+list_files() {
+	cd "$1" && eval "find . -type f ! -name '.' ! -path '*/_*' $IGNORE"
+}
+
+
+list_dependant_files () {
+ 	e="\\( -name '*.html' -o -name '*.md' -o -name '*.css' -o -name '*.js' \\)"
+	cd "$1" && eval "find . -type f ! -name '.' ! -path '*/_*' $IGNORE $e"
+}
+
+list_newer_files() {
+	cd "$1" && eval "find . -type f ! -name '.' $IGNORE -newer $2"
+}
+
+
+has_partials() {
+	grep -qE '^./_.*\.html$|^./_.*\.js$|^./_.*\.css$'
+}
+
+
+list_affected_files() {
+	fs=$(list_newer_files "$1" "$2")
+
+	if echo "$fs" | has_partials; then 
+        list_dependant_files "$1"
+	else 
+        echo "$fs"
+	fi
+}
+
+
+render_html_files() {
+	while read -r f; do 
+        render_html_file "$3" < "$1/$f" > "$2/$f"
+	done
+}
+
+
+render_md_files_lowdown() {
+	# Check if the previous file has a date in it
+	while read -r f; do
+        lowdown \
+			--html-no-escapehtml \
+			--html-no-skiphtml \
+			--parse-no-metadata \
+			--parse-no-autolink <"$1/$f" | render_html_file "$3" >"$2/${f%\.md}.html"
+	done
+}
+
+render_md2html(){
+    lowdown \
+		--html-no-escapehtml \
+		--html-no-skiphtml \
+		--parse-no-metadata \
+		--parse-no-autolink
+}
+
+
+render_md_files_Markdown_pl() {
+    while read -r f;	do
+		Markdown.pl < "$1/$f" | render_html_file "$3" > "$2/${f%\.md}.html"
+	done
+}
+
+
+render_html_file() {
+    if [ -p /dev/stdin ]; then # Si la entrada es por standard input
+        file="$(cat -)" # Mete stdin en la variable
+    else # Si la entrada es normal
+        file="$2" 
+    fi
+    
+    [ -z "$file" ] && return 1
+    local title
+    
+    # Replace document title name
+    local H1_pattern="<*.[Hh]1*.>\|<\/*.[Hh]1*.>"
+    if echo "$file" | grep --quiet "$H1_pattern" >&2; then
+        #FIXME: se le queda al principio del nombre del título un espacio
+        title="$(echo "$file" | pup 'h1' | grep --invert-match '<.*[Hh]1.*>')"
+    fi
+    [ "x$title" == 'x' ] && title="$1" # Manera robusta de comprobar si un string tiene caracteres de espacio o está vacío
+
+    local title_pattern="<*.title*.><\/*.title*.>"
+    HEADER="$(echo "$HEADER" | sed "s/$title_pattern/\<title\>$title\<\/title\>/")"
+    #FIXME: mejor que 'echo' usar 'printf' para imprimir la salida
+    echo "$HEADER" 
+    echo "$file" 
+    echo "$FOOTER"
+}
+
+
+list_pages() {
+	e="\\( -name '*.html' -o -name '*.md' \\)"
+	cd "$1" && eval "find . -type f ! -path '*/.*' ! -path '*/_*' $IGNORE $e" |
+	sed 's#^./##;s#.md$#.html#;s#/index.html$#/#'
+}
+
+render_article_list() {
+    if [ -n "$ARTICLE_LIST_TITLE" ]; then
+        local urls="$1"
+        echo "${urls}"
+        local base_url="$2"
+        local items=""
+        local date_format="%B %e, %Y"
+        # Sort pages by date
+        local files="$(list_files "$3" | grep '\.html$' | sed 's|\./||g')"
+        for i in ${files}; do
+            if echo "$i" | grep -Eqv "index|contact"; then
+                page_title="$(echo "$i" | pup 'h1' | grep --invert-match '<.*[Hh]1.*>')"
+                # IDEA: if there is not date inside de text, get it from files date
+                [ -f "$4/${i%\.html}.md" ] && local page_date="$(date -r "$4/${i%\.html}.md" +"$date_format")" # gets page's date from src/*.md files date. Only if .md file exists
+                url="$page_date:$i"
+                urls_sorted="$(echo "$urls_sorted\n$url" | sort --reverse)"
+            fi
+        done
+        
+        printf "Article list\\n$urls_sorted"
+        echo >&2 
+        # Create article list
+        for i in "$urls_sorted"; do
+            if echo "$i" | grep -Eqv "index|contact"; then
+                url="$(echo "$i" | cut -d ':' -f2-)"
+                page_title="$(cat "$3/$url" | pup 'h1' | grep --invert-match '<.*[Hh]1.*>')"
+                [ -f "$4/${i%\.html}.md" ] && local page_date="$(date -r "$4/${i%\.html}.md" +"$date_format")"
+                item='<li><a href=\"'"$base_url/${url}"'\">'"${page_title}"'</a><p class="date">'"${page_date}"'</p></li>'
+                items=$items$item
+            fi
+        done
+
+        # Append article list
+        #TODO: with the article list title ad this line after it.
+        local line="$(cat "$3/index.html" | pup 'h2' | grep "$ARTICLE_LIST_TITLE" | grep --invert-match '<.*[Hh]*.>')"
+        local html_line="$(echo "## $line" | render_md2html)"
+        sed -i 's|<.*[Hh]*.>'"$ARTICLE_LIST_TITLE"'<.*[Hh]*.>|'"$html_line"'<ul class="articles">'"${items}"'</ul>|g' "$3/index.html"
+    fi
+}
+
+get_page_date(){
+    local file="$1"
+    if [ -f "$file" ]; then
+        # search for date pattern
+        date
+    else
+        exit 2
+    fi
+}
+
+render_sitemap() {
+	urls="$1"
+	base_url="$2"
+	date="$3"
+
+	echo '<?xml version="1.0" encoding="UTF-8"?>'
+	echo '<urlset'
+	echo 'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"'
+	echo 'xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9'
+	echo 'http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd"'
+	echo 'xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
+	echo "$urls" |
+	sed -E 's#^(.*)$#<url><loc>'"$base_url"'/\1</loc><lastmod>'\
+"$date"'</lastmod><priority>1.0</priority></url>#'
+	echo '</urlset>'
+}
+
+main "$@"
