@@ -1,0 +1,50 @@
+#! /usr/bin/env bash
+alias ....='cd ../../../'
+alias ...='cd ../../'
+alias ..='cd ..'
+alias :Q='exit'
+alias :c='clear'
+alias :q='rm -f /tmp/last_pwd > /dev/null; exit'
+alias :w='pwd > /tmp/last_pwd;'
+alias :x='pwd > /tmp/last_pwd; exit'
+alias DISPLAY="xrandr --output LVDS-1 --primary --left-of VGA-1 --rate 60.00i"
+alias PRIVATE_IP='hostname -I'
+alias PUBLIC_IP='wget http://ipecho.net/plain -O - -q; echo'
+alias alert='notify-send --urgency=low -i "$([ $? = 0 ] && echo terminal || echo error)" "$(history|tail -n1|sed -e '\''s/^\s*[0-9]\+\s*//;s/[;&|]\s*alert$//'\'')"'
+alias bcp='rsync --recursive --progress'
+alias cd='ch'
+alias cdd='cd ${OLDPWD}'
+alias change_background="feh --no-fehbg --recursive --bg-fill --randomize /home/lu4r_bl/.wallpapers"
+alias clc='clear'
+alias clear='[ $[$RANDOM % 100] = 0 ] && rr || clear'
+alias connect="sudo openvpn"
+alias cp='cp -iv'
+alias eguraldia='curl -X GET wttr.in 2>&1 | tail -n 50 | head -n 19 | tail -n 10 >| /tmp/.eguraldia.txt ; cat /tmp/.eguraldia.txt ; echo ""'
+alias fuck='sudo $(history -p !!)'
+alias grep='grep --color'
+alias hexedit="hexedit --color"
+alias htop='htop --tree'
+alias l='ls -CF'
+alias la='ls -A'
+alias lgtb_touch="lolcat -a --speed=150 --freq=0.1"
+alias ll='ls -alF'
+alias mv='mv -iv'
+alias pup='pup --color'
+alias pwd2path='export PATH="$PATH:$PWD"'
+alias rm='rm -i -v'
+alias rmf='rm -f'
+alias rr='curl -s -L https://raw.githubusercontent.com/keroserene/rickrollrc/master/roll.sh | bash'
+alias sudo='sudo -p "$(printf "\033[1;31mPassword: \033[0;0m" )"'
+alias untar='tar -xvf'
+alias v='nvim'
+alias vi='nvim'
+alias vim='nvim'
+alias youtube_m4a='youtube-dl --extract-audio --audio-format mp3 -proxy socks5://127.0.0.1:9050/'
+
+# git alias
+alias gia="git add"
+alias gcm="git commit -a -m"
+alias gs="git status"
+alias gp="git push"
+alias gg="git pull"
+alias gd="git diff"

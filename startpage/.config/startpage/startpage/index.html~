@@ -1,0 +1,84 @@
+<img src="preview.png" alt="" /><!DOCTYPE html>
+<html>
+	<head>
+		<title>Home</title>
+		<meta charset ="UTF-8">
+		<link rel="stylesheet" type="text/css" href="style/style.css">
+		<link rel="shortcut icon" href="icon/buildings (1).png">
+	</head>
+<body>
+<div class="everything">
+<!--
+	<div id="time" class="time"></div> -->
+	<input id="search-bar-input" placeholder="Bilatu nahi duzuna">
+	<div class="box">
+		<div class="link">
+			<ul>
+				<li><a href="https://www.unavarra.es">UPNA</a></li>
+				<li><a href="https://miaulario.unavarra.es/portal">MiAulario</a></li>
+				<li><a href="https://www.tlm.unavarra.es/">Telemática</a></li>
+				<li><a href="https://drive.google.com/drive/folders/13R8ki_5SJXHwQBK9zBmt9KSEaoZelHmz">Teleco</a></li>
+			</ul>
+		</div>
+		<div class="link">
+			<ul>
+				<li><a href="https://twitter.com">Twitter</a></li>
+				<li><a href="https://pdfcomuna.netlify.app/">PDF Comuna</a></li>
+				<li><a href="https://gedar.eus">Gedar</a></li>
+				<li><a href="https://sindominio.net/">Sindominio</a></li>
+			</ul>
+		</div>
+		<div class="link">
+			<ul>
+				<li><a href="https://github.com/luarpy">Github</a></li>
+				<li><a href="https://stackoverflow.com/">StackOverflow</a></li>
+				<li><a href="https://underc0de.org/">UnderC0de</a></li>
+				<li><a href="https://hackmadrid.org">HackMadrid</a></li>
+			</ul>
+		</div>
+		<div class="link">
+			<ul>
+				<li><a href="https://reddit.com/r/linux">r/linux</a></li>
+				<li><a href="https://reddit.com/r/unixporn">r/unixporn</a></li>
+                <li><a href="https://reddit.com/r/abandonedporn">r/abandoned</a></li>
+                <li><a href="https://reddit.com/r/homelab">r/homelab</a></li>
+			</ul>
+		</div>
+		<div class="link">
+			<ul>
+				<li><a href="https://lukesmith.xyz/">Luke Smith</a></li>
+				<li><a href="http://liveoverflow.com/">LiveOverflow</a></li>
+				<li><a href="https://github.com/notthebee">Wolfgang</a></li>
+				<li><a href="https://basqueserver.ddns.net">Unai</a></li>
+			</ul>
+		</div>
+      <div class="link">
+			<ul>
+				<li><a href="http://192.168.0.132:8989">Sonarr</a></li>
+				<li><a href="http://192.168.0.132:7878">Radarr</a></li>
+				<li><a href="http://192.168.0.132:9117">Jackett</a></li>
+				<li><a href="http://192.168.0.132:6767">Bazarr</a></li>
+			</ul>
+		</div>
+		<div class="link">
+			<ul>
+				<li><a href="http://192.168.0.132:9091">Transmission</a></li>
+				<li><a href="http://192.168.0.132:3000">Gitea</a></li>
+				<li><a href="http://192.168.0.132:8096">Jellyfin</a></li>
+				<li><a href="http://192.168.0.132:8080">NextCloud</a></li>
+			</ul>
+		</div>
+		<div class="link">
+			<ul>
+				<li><a href="http://192.168.0.109:8123">Home Assist</a></li>
+				<li><a href="http://192.168.0.132:3000">Pi Hole</a></li>
+				<li><a href="http://192.168.0.132">Web</a></li>
+				<li><a href="http://192.168.0.132:8080">Lorategia</a></li>
+			</ul>
+		</div>
+	</div>
+</div>
+<script src="scr/script.js"></script>
+<script src="scr/search.js"></script>
+</body>
+</html>
