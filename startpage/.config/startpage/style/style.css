@@ -37,6 +37,7 @@ input {
 }
 
 body {
+/*	background-image: url('../background/background.png'); */
 	background-image: url('../background/background.jpg');
 	background-color: #262626;
 	background-size: cover;
