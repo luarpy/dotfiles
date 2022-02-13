@@ -143,3 +143,8 @@ check_tor(){
 set_torenviroment(){
     torsocks --shell
 }
+
+fp(){
+    local app="$(flatpak list | cut -f2 | fzf)"
+    flatpak run "$app"
+}
