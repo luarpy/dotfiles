@@ -144,6 +144,10 @@ set_torenviroment(){
     torsocks --shell
 }
 
+set_phpserver(){
+  php -S 127.0.0.1:8000
+}
+
 fp(){
     local app="$(flatpak list | cut -f2 | fzf)"
     flatpak run "$app"

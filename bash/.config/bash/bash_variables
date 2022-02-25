@@ -1,1 +1,5 @@
 BROWSER="flatpak run com.github.Eloston.UngoogledChromium"
+EDITOR='nvim'
+VISUAL=''
+SUDO_EDITOR="$EDITOR"
+SUDO_VISUAL="$VISUAL"
