@@ -74,11 +74,8 @@ export PATH="$PATH:$HOME/.local/bin:$HOME/.local/bin/personal"
 #  && { exec tmux; } >/dev/null 2>&1
 #
 
-# BEGIN_KITTY_SHELL_INTEGRATION
-if test -n "$KITTY_INSTALLATION_DIR" -a -e "$KITTY_INSTALLATION_DIR/shell-integration/bash/kitty.bash"; then source "$KITTY_INSTALLATION_DIR/shell-integration/bash/kitty.bash"; fi
-# END_KITTY_SHELL_INTEGRATION
-
-# Check if the running terminal is kitty
+# Special configuration for aliases, functions, etc. in kitty terminal
 if ps -o comm= -p "$(($(ps -o ppid= -p "$(($(ps -o sid= -p "$$")))")))" | grep -q 'kitty'; then
-  alias ssh='kitty +kitten ssh'
+  [ -f "~/.config/bash/bash_kitty" ] && source "~/.config/bash/bash_kitty"
+
 fi

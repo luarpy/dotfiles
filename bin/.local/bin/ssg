@@ -78,7 +78,7 @@ main() {
     fi
 
     # Features
-    #add_mainpage_button "$2" "$base_url"
+
     replace_domain_name "$2"
 
     # sitemap
@@ -110,50 +110,15 @@ readlink_f() {
 	echo "$dir/$file"
 }
 
-
-add_mainpage_button(){
-    [ -n "$BUTTON_TEXT" ] || BUTTON_TEXT="Main Page"
-    local files="$(list_files "$1" | grep '\.html$' | sed 's|\./||g')"
-    cd "$1"
-    while read file; do
-        if ! echo "$file" | grep -q "index"; then
-            local text_line="<p class=\"main-page\"><a class=\"back\" href=\"$2\">$BUTTON_TEXT<\/a><\/p>" 
-            if grep -Eq "<*.footer*.>"; then
-                #FIXME: get <footer>*</footer> line and use it to replace in place
-                local footer_segment="$(echo "$file" | pup 'footer')"
-                sed "/<footer*.>/i" $text_line "$file"
-            else
-                sed -i "/<\
-                  /body>/i $text_line" "$file"
-            fi
-        fi
-    done < <(echo "$files")
-    cd ..
-}
-
 replace_domain_name(){
     if [ -n "$DOMAIN_NAME" ]; then
         local files="$(list_files "$1" | grep '\.html$' | sed 's|\./||g')"
         cd "$1"
         while read file; do
-            sed -i 's|DOMAIN_NAME|'"$DOMAIN_NAME"'|g' "$file"
+            sed -i "s,DOMAIN_NAME,$DOMAIN_NAME,g" "$file"
         done < <(echo "$files")
         cd ..
     fi
-}
-
-realpath_f(){
-    realpath --relative-to="$2" "$1" | tr '/' '\n' | sed '0,/../{//d;}' | tr '\n' '/'
-}
-
-replace_path(){
-    [ "$PWD" != "$(readlink -f "$1")" ] && cd "$(readlink -f "$1")"
-    exit
-    local files="$(list_files "$1" | grep "\.html$" | sed 's|\./||g')"
-    while read file; do
-        sed -i 's|FCKING_PATH|'"$(realpath_f "$1" "$file")"'|g' "$file" --quiet 
-    done < <(echo "$files")
-
 }
 
 print_status() {
@@ -165,7 +130,6 @@ print_status() {
 		if (NR>1) printf NR " " plural
 	}'
 }
-
 
 usage() {
 	echo "usage: ${0##*/} src dst title base_url" >&2
@@ -262,9 +226,6 @@ render_html_file() {
     
     [ -z "$file" ] && return 1
     local title
-    #FIXME: cuando procesa el index.md de la pagina de inicio, si tiene un titulo h1,
-    # produce un error para recoger el titulo del documento. Así al substituirlo en la cabecera
-    # se llega a producir un error en el sed y no lo implementa correctamente
 
     # Replace document title name
     local H1_pattern="<*.[Hh]1*.>\|<\/*.[Hh]1*.>"
@@ -275,7 +236,7 @@ render_html_file() {
     [ "x$title" == 'x' ] && title="$1" # Manera robusta de comprobar si un string tiene caracteres de espacio o está vacío
    
     local title_pattern="<*.title*.><\/*.title*.>"
-    HEADER="$(echo "$HEADER" | sed "s/$title_pattern/\<title\>$title\<\/title\>/" || echo "$HEADER")" # IDEA: he añadido el git "$HEADER" para ver si soluciona el problema del error mencionado con H1 en index.md
+    HEADER="$(echo "$HEADER" | sed 's/'"$title_pattern"'/\<title\>'"$title"'\<\/title\>/' || echo "$HEADER")" 
     #FIXME: mejor que 'echo' usar 'printf' para imprimir la salida
     echo "$HEADER" 
     echo "$file" 
@@ -325,7 +286,7 @@ render_article_list() {
         #TODO: with the article list title ad this line after it.
         local line="$(cat "$3/index.html" | pup 'h2' | grep "$ARTICLE_LIST_TITLE" | grep --invert-match '<.*[Hh]*.>')"
         local html_line="$(echo "## $line" | render_md2html)"
-        sed -i 's|<.*[Hh]*.>'"$ARTICLE_LIST_TITLE"'<.*[Hh]*.>|'"$html_line"'<ul class="articles">'"${items}"'</ul>|g' "$3/index.html"
+        sed -i 's|<.*[Hh]*.>'"$ARTICLE_LIST_TITLE"'<.*[Hh]*.>|'"$html_line"'<ul class="articles">'"${items}"'<\/ul>|g' "$3/index.html"
     fi
 }
 
@@ -386,21 +347,6 @@ render_sitemap() {
 	echo '</urlset>'
 }
 
-params="$@"
-
-# while [[ $# -gt 0 ]]; do
-#     param="$1"
-#     shift 
-#     case "$param" in
-#         --help|-h)
-#             usage
-#             exit 0
-#             ;;
-#         -v|--version)
-#             version
-#             exit 0
-#             ;;
-#     esac
-# done
-
 main "$@"
+
+version

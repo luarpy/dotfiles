@@ -38,7 +38,8 @@ alias untar='tar -xvf'
 alias v='nvim'
 alias vi='nvim'
 alias vim='nvim'
-alias youtube_m4a='youtube-dl --extract-audio --audio-format mp3 -proxy socks5://127.0.0.1:9050/'
+alias fhere='find . -name'
+alias psg="ps aux | grep -v grep | grep -i -e VSZ -e"
 
 # git alias
 alias gia="git add"
